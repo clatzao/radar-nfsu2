@@ -1,0 +1,179 @@
+/* Fonte Exo 2 (SIL Open Font License) embutida, funciona sem internet */
+@font-face { font-family: 'Exo 2'; font-style: italic; font-weight: 500; src: url(vendor/fonts/exo2-italic-500.ttf) format('truetype'); }
+@font-face { font-family: 'Exo 2'; font-style: italic; font-weight: 700; src: url(vendor/fonts/exo2-italic-700.ttf) format('truetype'); }
+@font-face { font-family: 'Exo 2'; font-style: italic; font-weight: 800; src: url(vendor/fonts/exo2-italic-800.ttf) format('truetype'); }
+
+/* Paleta tirada de frames do NFSU2 */
+:root {
+  --land: #2e302c;
+  --player: #3fd63a;
+  --marker: #ff8a1c;
+  --ui-title: #d6e36c;           /* verde-amarelado dos títulos de menu */
+  --ui-panel: rgba(22,24,22,.8);
+  --ui-line: rgba(255,255,255,.14);
+  --text: #f2f2ee;
+  --dim: #a9aba4;
+  /* unidade que escala igual na central deitada e no celular em pé */
+  --u: min(1vh, 1.5vw);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  background: var(--land); color: var(--text);
+  font-family: 'Exo 2', 'Segoe UI', Roboto, sans-serif; font-style: italic;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  touch-action: none;             /* a pinça dá zoom só no mapa, nunca na página inteira */
+  overscroll-behavior: none;
+}
+button, input { font-family: inherit; font-style: italic; }
+[hidden] { display: none !important; }
+
+/* ---------- Mapa ---------- */
+#map { position: fixed; inset: 0; background: var(--land); }
+.shade { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 calc(var(--u)*12) calc(var(--u)*3) rgba(0,0,0,.55); }
+.shade::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 34vh;
+  background: linear-gradient(180deg, rgba(0,0,0,.55), transparent); }
+.player { position: fixed; left: 50%; top: 66%; width: calc(var(--u)*7); pointer-events: none;
+  transform: translate(-50%, -50%) scaleY(.82); overflow: visible; filter: drop-shadow(0 .4vh .6vh rgba(0,0,0,.6)); }
+
+/* ---------- Painéis no estilo dos menus ---------- */
+.panel {
+  background: var(--ui-panel); border: 1px solid var(--ui-line); border-radius: calc(var(--u)*1.1);
+  padding: calc(var(--u)*1.2) calc(var(--u)*2.4) calc(var(--u)*1.4); box-shadow: 0 .6vh 2vh rgba(0,0,0,.5);
+}
+.panel h6 { margin: 0; font-weight: 700; font-size: calc(var(--u)*2.6); color: var(--ui-title); letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rule { height: calc(var(--u)*.5); margin: calc(var(--u)*.7) 0 calc(var(--u)*.9); border-radius: 9px;
+  background: linear-gradient(90deg, rgba(200,200,190,.55), rgba(200,200,190,.15)); }
+.big { font-weight: 800; font-size: calc(var(--u)*5.8); line-height: 1.05; white-space: nowrap; }
+
+.top { position: fixed; top: calc(var(--u)*2.5); left: calc(var(--u)*2.5); right: calc(var(--u)*2.5); display: flex; gap: calc(var(--u)*1.5); z-index: 3; }
+.street-panel { flex: 1; min-width: 0; }
+#street { overflow: hidden; text-overflow: ellipsis; }
+.small-panel { text-align: right; }
+#clock, #temp { font-variant-numeric: tabular-nums; }
+
+/* ---------- Painel de navegação (rota ativa) ---------- */
+.nav {
+  position: fixed; left: calc(var(--u)*2.5); top: calc(var(--u)*17); z-index: 3;
+  width: min(calc(100vw - var(--u)*5), calc(var(--u)*90));
+  display: flex; gap: calc(var(--u)*1.8); align-items: center;
+}
+.nav .turn { width: calc(var(--u)*9); height: calc(var(--u)*9); flex: none; border-radius: calc(var(--u)*1);
+  background: var(--ui-title); display: flex; align-items: center; justify-content: center; }
+.nav .turn svg { width: 72%; height: 72%; }
+.nav .what { flex: 1; min-width: 0; }
+.nav .dist { font-weight: 800; font-size: calc(var(--u)*5); line-height: 1; }
+.nav .instr { font-weight: 700; font-size: calc(var(--u)*3); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: calc(var(--u)*.5); }
+.nav .eta { text-align: right; font-weight: 700; font-size: calc(var(--u)*2.4); color: var(--dim); white-space: nowrap; }
+.nav .eta b { display: block; color: var(--text); font-size: calc(var(--u)*3.8); font-weight: 800; }
+.nav .x { flex: none; }
+
+/* ---------- Botões ---------- */
+.btn {
+  font-weight: 700; font-size: calc(var(--u)*2.8); color: var(--text); cursor: pointer;
+  background: var(--ui-panel); border: 1px solid rgba(255,255,255,.25); border-radius: calc(var(--u)*.9);
+  padding: calc(var(--u)*1.3) calc(var(--u)*2.2); min-height: 44px; white-space: nowrap;
+}
+.btn:active { border-color: var(--ui-title); }
+.btn.primary { background: var(--ui-title); color: #141512; border-color: var(--ui-title); }
+.btn.danger { color: #ff8a80; }
+.btn.icon { width: calc(var(--u)*8); height: calc(var(--u)*8); min-width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: calc(var(--u)*4.4); }
+
+.menu { position: fixed; left: calc(var(--u)*2.5); bottom: calc(var(--u)*3); display: flex; gap: calc(var(--u)*1.2); z-index: 4; }
+.menu .btn { display: flex; align-items: center; gap: calc(var(--u)*1); padding: calc(var(--u)*1.6) calc(var(--u)*2.4); }
+.menu .btn svg { width: calc(var(--u)*3.2); height: calc(var(--u)*3.2); }
+
+.zoom { position: fixed; right: calc(var(--u)*4.5); top: calc(var(--u)*31); display: flex; flex-direction: column; gap: calc(var(--u)*1.2); z-index: 4; }
+
+/* ---------- Bússola ---------- */
+.compass { position: fixed; right: calc(var(--u)*2.5); top: calc(var(--u)*17); width: calc(var(--u)*12); height: calc(var(--u)*12); pointer-events: none; overflow: visible; z-index: 2; }
+
+/* ---------- Velocímetro (HUD personalizado do NFSU2) ---------- */
+.speedo { --speedo-h: 26; position: fixed; right: calc(var(--u)*2); bottom: calc(var(--u)*2);
+  height: calc(var(--u) * var(--speedo-h)); aspect-ratio: 1275 / 975; pointer-events: none; z-index: 2; }
+.speedo svg { width: 100%; height: 100%; overflow: visible; }
+
+/* ---------- Janelas (rota, locais, ajustes) ---------- */
+.sheet {
+  position: fixed; left: calc(var(--u)*2.5); top: calc(var(--u)*2.5); bottom: calc(var(--u)*2.5); z-index: 10;
+  width: min(calc(100vw - var(--u)*5), calc(var(--u)*78));
+  display: flex; flex-direction: column; padding: calc(var(--u)*2) calc(var(--u)*2.6);
+  touch-action: pan-y; background: rgba(18,19,17,.95);
+}
+.sheet .head { display: flex; align-items: center; gap: calc(var(--u)*1.5); }
+.sheet .head h6 { flex: 1; font-size: calc(var(--u)*3.6); }
+.sheet .body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; touch-action: pan-y; }
+.field { display: flex; align-items: center; gap: calc(var(--u)*1.2); margin-bottom: calc(var(--u)*1.2); }
+.field label { width: calc(var(--u)*7); color: var(--ui-title); font-weight: 700; font-size: calc(var(--u)*2.6); }
+.field input {
+  flex: 1; min-width: 0; font-size: calc(var(--u)*3.2); font-weight: 700; color: var(--text);
+  background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.2); border-radius: calc(var(--u)*.8);
+  padding: calc(var(--u)*1.3) calc(var(--u)*1.6); min-height: 44px; outline: none; -webkit-user-select: text; user-select: text;
+}
+.field input:focus { border-color: var(--ui-title); }
+.row {
+  display: flex; align-items: center; gap: calc(var(--u)*1.6); width: 100%; text-align: left;
+  background: rgba(255,255,255,.04); border: 1px solid var(--ui-line); border-radius: calc(var(--u)*.9);
+  padding: calc(var(--u)*1.3) calc(var(--u)*1.6); margin-bottom: calc(var(--u)*1); color: var(--text); min-height: 48px;
+}
+button.row { cursor: pointer; }
+button.row:active, .row.sel { border-color: var(--ui-title); box-shadow: inset 0 0 0 1px var(--ui-title); }
+.row .t { flex: 1; min-width: 0; }
+.row .t b { display: block; font-size: calc(var(--u)*3); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .t small { display: block; font-size: calc(var(--u)*2.3); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .k { color: var(--dim); font-size: calc(var(--u)*2.4); white-space: nowrap; }
+.section { color: var(--ui-title); font-weight: 700; font-size: calc(var(--u)*2.5); margin: calc(var(--u)*1.6) 0 calc(var(--u)*.8); }
+.hint { color: var(--dim); font-size: calc(var(--u)*2.4); margin: calc(var(--u)*.6) 0 calc(var(--u)*1.2); }
+.actions { display: flex; gap: calc(var(--u)*1.2); flex-wrap: wrap; margin-top: calc(var(--u)*1.4); }
+.actions .btn { flex: 1; }
+
+/* Bola colorida das lojas do jogo */
+.ball { display: block; width: calc(var(--u)*4.4); height: calc(var(--u)*4.4); min-width: 22px; min-height: 22px; flex: none; border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #1b1c1a 0 22%, var(--c) 23% 58%, #fff3a0 59% 70%, var(--c) 71%);
+  box-shadow: 0 0 calc(var(--u)*1.4) var(--c); }
+.colors { display: flex; flex-wrap: wrap; gap: calc(var(--u)*1.6); margin: calc(var(--u)*.6) 0 calc(var(--u)*1.2); }
+.colors button { border: 0; padding: calc(var(--u)*.6); border-radius: 50%; background: transparent; cursor: pointer; }
+.colors button.sel { box-shadow: 0 0 0 3px var(--ui-title); }
+.colors .ball { width: calc(var(--u)*6); height: calc(var(--u)*6); }
+
+/* Ajustes */
+.opt { display: flex; align-items: center; gap: calc(var(--u)*1.6); padding: calc(var(--u)*1.2) 0; border-bottom: 1px solid var(--ui-line); }
+.opt .t { flex: 1; }
+.opt .t b { display: block; font-size: calc(var(--u)*2.9); font-weight: 800; }
+.opt .t small { color: var(--dim); font-size: calc(var(--u)*2.2); }
+.switch { width: calc(var(--u)*9); height: calc(var(--u)*4.6); min-width: 52px; min-height: 28px; border-radius: 99px; border: 1px solid rgba(255,255,255,.3);
+  background: rgba(0,0,0,.5); position: relative; cursor: pointer; flex: none; padding: 0; }
+.switch::after { content: ''; position: absolute; top: 12%; left: 6%; width: 38%; height: 76%; border-radius: 50%; background: #8d8f88; transition: left .15s, background .15s; }
+.switch.on { background: rgba(214,227,108,.25); border-color: var(--ui-title); }
+.switch.on::after { left: 56%; background: var(--ui-title); }
+.seg { display: flex; border: 1px solid rgba(255,255,255,.25); border-radius: calc(var(--u)*.8); overflow: hidden; flex: none; }
+.seg button { background: transparent; color: var(--text); border: 0; padding: calc(var(--u)*1) calc(var(--u)*1.8); font-weight: 700; font-size: calc(var(--u)*2.5); min-height: 40px; cursor: pointer; }
+.seg button.on { background: var(--ui-title); color: #141512; }
+
+/* Cartão (toque num local / estabelecimento / segurar no mapa) e resumo da rota: à esquerda, acima do menu */
+.card, .summary { position: fixed; left: calc(var(--u)*2.5); bottom: calc(var(--u)*12); z-index: 9;
+  width: min(calc(100vw - var(--u)*5), calc(var(--u)*78)); background: rgba(18,19,17,.94); }
+.card .row { background: transparent; border: 0; padding: 0; margin: 0 0 calc(var(--u)*.6); }
+.summary .nums { display: flex; gap: calc(var(--u)*4); margin: calc(var(--u)*.4) 0 calc(var(--u)*.6); }
+.summary .nums div { font-size: calc(var(--u)*2.4); color: var(--dim); font-weight: 700; }
+.summary .nums b { display: block; font-size: calc(var(--u)*4.6); color: var(--text); font-weight: 800; }
+
+.attrib { position: fixed; left: 50%; transform: translateX(-50%); bottom: 2px; font-size: 10px; font-style: normal; color: rgba(200,200,190,.45); white-space: nowrap; z-index: 1; pointer-events: none; }
+.toast { position: fixed; left: 50%; top: 45%; transform: translate(-50%,-50%); z-index: 20;
+  padding: calc(var(--u)*2) calc(var(--u)*3); font-size: calc(var(--u)*3); text-align: center; max-width: 90vw;
+  opacity: 0; transition: opacity .3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.diag { position: fixed; left: calc(var(--u)*2.5); right: calc(var(--u)*2.5); top: 30vh; z-index: 30;
+  background: rgba(10,11,10,.94); border: 1px solid var(--ui-title); border-radius: 8px;
+  padding: 10px 14px; font: normal 500 13px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; color: #dfe7c8; }
+
+@media (orientation: portrait) {
+  .top { flex-wrap: wrap; }
+  .street-panel { flex-basis: 100%; }
+  .small-panel { flex: 1; }
+  .nav { top: calc(var(--u)*30); }
+  .speedo { bottom: calc(var(--u)*12); height: calc(var(--u) * var(--speedo-h) * 1.25); }
+  .compass { top: calc(var(--u)*33); }
+  .zoom { top: calc(var(--u)*48); }
+  .card, .summary { bottom: calc(var(--u)*14); }
+}

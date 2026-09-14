@@ -1,0 +1,16 @@
+# Build do Android
+nfsu2-app/.gradle/
+nfsu2-app/build/
+nfsu2-app/app/build/
+nfsu2-app/local.properties
+nfsu2-app/.idea/
+*.iml
+
+# Cópia gerada automaticamente a partir de nfsu2-radar/web a cada build
+nfsu2-app/app/src/main/assets/
+
+# APK é publicado nas Releases, não no código
+*.apk
+
+# Configuração local do editor
+.claude/

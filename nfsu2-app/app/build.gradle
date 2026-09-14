@@ -1,0 +1,28 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace = 'br.radar.nfsu2'
+    compileSdk = 37
+
+    defaultConfig {
+        applicationId = 'br.radar.nfsu2'
+        minSdk = 24
+        targetSdk = 37
+        versionCode = 2
+        versionName = '0.2'
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+// A interface é a mesma página do protótipo web (nfsu2-radar/web), copiada para os assets a cada build
+def syncWebAssets = tasks.register('syncWebAssets', Sync) {
+    from rootProject.file('../nfsu2-radar/web')
+    into layout.projectDirectory.dir('src/main/assets')
+}
+tasks.named('preBuild') { dependsOn syncWebAssets }

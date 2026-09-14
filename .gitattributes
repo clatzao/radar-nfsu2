@@ -1,0 +1,6 @@
+* text=auto
+nfsu2-app/gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.ttf binary
+*.apk binary
