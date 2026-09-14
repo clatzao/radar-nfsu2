@@ -29,6 +29,21 @@ JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug
 
 O APK sai em `nfsu2-app/app/build/outputs/apk/debug/app-debug.apk`.
 
+## Baixar e atualizar
+
+- Baixe o APK mais recente em [Releases](https://github.com/clatzao/radar-nfsu2/releases/latest).
+- A partir da v0.3 o app procura versões novas sozinho ao abrir (**Ajustes → Aplicativo**) e instala com um toque.
+
+## Publicar uma nova versão
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Version 0.4 -Notes "O que mudou"
+```
+
+O script aumenta a versão, gera o APK, faz commit + tag, envia e cria a Release. Os APKs são assinados com a chave de
+debug deste PC (`%USERPROFILE%\.android\debug.keystore`): **guarde uma cópia dela**, porque só APKs com a mesma chave
+conseguem atualizar o app já instalado.
+
 ## Serviços usados (gratuitos)
 
 Mapa: OpenFreeMap / OpenStreetMap · Busca e endereços: Photon (komoot) · Rotas: Valhalla (FOSSGIS) e OSRM · Temperatura: Open-Meteo.
