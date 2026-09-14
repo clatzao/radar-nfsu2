@@ -31,6 +31,22 @@ JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew assembleDebug
 
 O APK sai em `nfsu2-app/app/build/outputs/apk/debug/app-debug.apk`.
 
+## Nome de rua preciso por cidade (base local)
+
+Para cidades com base local (hoje: **Maracás/BA**), o app usa o traçado exato das ruas do OpenStreetMap e completa
+os nomes que faltam com os endereços do **CNEFE/IBGE (Censo 2022)**. Ruas sem nome em nenhuma fonte aparecem como
+"Rua sem nome". Tocando no painel **Rua atual** dá para corrigir o nome de qualquer rua (fica salvo no aparelho).
+
+```bash
+# gerar/atualizar a base de uma cidade: código IBGE, nome e retângulo (sul oeste norte leste)
+node ferramentas/ruas-locais/gerar.cjs 2920502 "Maracás" -13.475 -40.470 -13.405 -40.395
+# medir a precisão simulando um carro dirigindo pela cidade
+node ferramentas/ruas-locais/testar.cjs 2920502
+```
+
+O gerador também grava `ferramentas/ruas-locais/conflitos-<código>.json`: ruas em que o nome do OpenStreetMap e o do
+IBGE são diferentes (o app mantém o do OSM e oferece o do IBGE como sugestão na tela de correção).
+
 ## Baixar e atualizar
 
 - Baixe o APK mais recente em [Releases](https://github.com/clatzao/radar-nfsu2/releases/latest).

@@ -1,0 +1,100 @@
+[
+ {
+  "via": 333871347,
+  "osm": "Rua Abelaide Lúcio",
+  "ibge": "Rua Esmeraldo Pereira da Silva",
+  "enderecos": 16,
+  "concordancia": 100
+ },
+ {
+  "via": 343711829,
+  "osm": "Rua Manoel R. de Novaes",
+  "ibge": "Rua Manoel Ribeiro Novais",
+  "enderecos": 37,
+  "concordancia": 98
+ },
+ {
+  "via": 343711868,
+  "osm": "Rua Valdevino Soares",
+  "ibge": "Rua José Raimundo",
+  "enderecos": 91,
+  "concordancia": 99
+ },
+ {
+  "via": 343711903,
+  "osm": "Rua Edson Ribeiro Almeida",
+  "ibge": "Rua João Marques Santana",
+  "enderecos": 11,
+  "concordancia": 81
+ },
+ {
+  "via": 343711907,
+  "osm": "Rua Hungulino José Rocha",
+  "ibge": "Rua Hugolino José da Rocha",
+  "enderecos": 25,
+  "concordancia": 100
+ },
+ {
+  "via": 343711912,
+  "osm": "Rua Maria da Paixão",
+  "ibge": "Rua Maria de Lurdes Souza",
+  "enderecos": 12,
+  "concordancia": 93
+ },
+ {
+  "via": 343711914,
+  "osm": "Rua do Campo",
+  "ibge": "Rua Maracás",
+  "enderecos": 29,
+  "concordancia": 100
+ },
+ {
+  "via": 343711917,
+  "osm": "Rua Andriano Borges Meira",
+  "ibge": "Rua Aloisio José de Almeida Adriano Borges Meira",
+  "enderecos": 14,
+  "concordancia": 100
+ },
+ {
+  "via": 343711931,
+  "osm": "Rua São Pedro",
+  "ibge": "Rua 2",
+  "enderecos": 53,
+  "concordancia": 100
+ },
+ {
+  "via": 343711956,
+  "osm": "Rua São Carlos",
+  "ibge": "Rua 1",
+  "enderecos": 32,
+  "concordancia": 93
+ },
+ {
+  "via": 343711963,
+  "osm": "Rua Valdevino Soares",
+  "ibge": "Rua do Campo",
+  "enderecos": 46,
+  "concordancia": 95
+ },
+ {
+  "via": 343717212,
+  "osm": "Rua Luís Antônio dos Anjos",
+  "ibge": "Rua Idalice Morbeck do Nascimento",
+  "enderecos": 45,
+  "concordancia": 98
+ },
+ {
+  "via": 343717302,
+  "osm": "Avenida 5 de Julho",
+  "ibge": "Rua Cinco de Julho",
+  "enderecos": 31,
+  "concordancia": 86
+ },
+ {
+  "via": 1017157472,
+  "osm": "Rua Valdevino Soares",
+  "ibge": "Rua do Campo",
+  "enderecos": 39,
+  "concordancia": 100
+ }
+]

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0b0c0b">
+<meta name="theme-color" content="#0f1824">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Radar NFSU2</title>
 <link rel="icon" href="icon.png">
@@ -45,10 +45,15 @@
 <!-- Bússola: o triângulo laranja aponta o norte, ou o destino quando há rota -->
 <button class="compass-btn" id="compassBtn" aria-label="Norte para cima">
 <svg class="compass" viewBox="0 0 100 100" aria-hidden="true">
-  <circle cx="50" cy="50" r="38" fill="rgba(22,24,22,.65)" stroke="rgba(128,128,122,.9)" stroke-width="10"/>
-  <circle cx="50" cy="50" r="43.5" fill="none" stroke="rgba(215,215,208,.5)" stroke-width="1"/>
-  <text id="compassTxt" x="50" y="59" text-anchor="middle" font-family="'Exo 2', sans-serif" font-style="italic" font-weight="800" font-size="26" fill="#f2f2ee">N</text>
-  <g id="north"><path d="M50 3 L58.5 16 L41.5 16 Z" fill="rgba(22,24,22,.9)" stroke="var(--marker)" stroke-width="3.6" stroke-linejoin="round"/></g>
+  <defs>
+    <linearGradient id="metalAzul" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a9cdf0"/><stop offset=".45" stop-color="#4f6f92"/><stop offset=".6" stop-color="#2c4260"/><stop offset="1" stop-color="#8fb4dc"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="38" fill="rgba(8,16,28,.72)" stroke="url(#metalAzul)" stroke-width="10"/>
+  <circle cx="50" cy="50" r="43.5" fill="none" stroke="rgba(170,210,255,.55)" stroke-width="1"/>
+  <text id="compassTxt" x="50" y="59" text-anchor="middle" font-family="'Exo 2', sans-serif" font-style="italic" font-weight="800" font-size="26" fill="#eef6ff">N</text>
+  <g id="north"><path d="M50 3 L58.5 16 L41.5 16 Z" fill="rgba(8,16,28,.9)" stroke="var(--marker)" stroke-width="3.6" stroke-linejoin="round"/></g>
 </svg>
 </button>
 
@@ -106,6 +111,23 @@
   </div>
 </div>
 
+<!-- Janela: corrigir nome da rua -->
+<div class="panel sheet" id="streetFix" hidden>
+  <div class="head"><h6>Nome desta rua</h6><button class="btn icon" data-close aria-label="Fechar">✕</button></div>
+  <div class="rule"></div>
+  <div class="body">
+    <div class="hint">Se o nome estiver errado, escreva o certo. Fica salvo neste aparelho e passa a valer sempre que você passar por esta rua.</div>
+    <div class="field"><label for="fixName">Nome</label><input id="fixName" maxlength="60" autocomplete="off" enterkeyhint="done"></div>
+    <div class="section" id="fixSugTitle">Sugestões</div>
+    <div id="fixSug"></div>
+    <div class="hint" id="fixInfo"></div>
+    <div class="actions">
+      <button class="btn" id="fixReset">Voltar ao original</button>
+      <button class="btn primary" id="fixSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Janela: ajustes -->
 <div class="panel sheet" id="settingsSheet" hidden>
   <div class="head"><h6>Ajustes</h6><button class="btn icon" data-close aria-label="Fechar">✕</button></div>
@@ -153,12 +175,14 @@
   <div class="actions" id="updActions"><button class="btn" id="updLater">Depois</button><button class="btn primary" id="updNow">Atualizar</button></div>
 </div>
 
-<div class="attrib">© OpenStreetMap · OpenFreeMap · Open-Meteo · Photon · Valhalla</div>
+<div class="attrib">© OpenStreetMap · OpenFreeMap · IBGE · Open-Meteo · Photon · Valhalla</div>
 <div class="panel toast" id="toast"></div>
 <div class="diag" id="diag" hidden></div>
 
 <script src="js/core.js"></script>
+<script src="js/streetmatch.js"></script>
 <script src="js/offline.js"></script>
+<script src="js/localstreets.js"></script>
 <script src="js/map.js"></script>
 <script src="js/gps.js"></script>
 <script src="js/hud.js"></script>

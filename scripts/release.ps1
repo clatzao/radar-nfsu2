@@ -2,10 +2,13 @@
 #   powershell -ExecutionPolicy Bypass -File scripts\release.ps1 -Version 0.4 -Notes "O que mudou"
 # Aumenta versionCode/versionName, gera o APK, faz commit + tag, envia ao GitHub e cria a Release com o APK.
 # Os apps instalados encontram a Release sozinhos (Ajustes → Atualização automática).
+#   (ou -NotesFile notas.md, que evita problemas com aspas e acentos na linha de comando)
 param(
     [Parameter(Mandatory = $true)][string]$Version,
-    [string]$Notes = ''
+    [string]$Notes = '',
+    [string]$NotesFile = ''
 )
+if ($NotesFile) { $Notes = [IO.File]::ReadAllText((Resolve-Path $NotesFile), [Text.Encoding]::UTF8) }
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $utf8 = New-Object System.Text.UTF8Encoding($false)

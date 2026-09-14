@@ -75,7 +75,7 @@ public class MainActivity extends Activity implements LocationListener {
         }
 
         web = new WebView(this);
-        web.setBackgroundColor(0xFF2E302C);
+        web.setBackgroundColor(0xFF0F1824);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);

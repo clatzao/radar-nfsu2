@@ -31,7 +31,8 @@
 
   const EMPTY = { type: 'FeatureCollection', features: [] };
   function buildStyle() {
-    const C = { land: '#2e302c', water: '#1e4561', block: '#3a3c37', minor: '#9d9f99', mid: '#b3b5ae', major: '#c9cbc4' };
+    // Azul-noite do radar (mesmo clima do ícone): ruas azul-acinzentadas e água com brilho azul nas margens
+    const C = { land: '#0f1824', water: '#0a2c4f', waterGlow: '#1f8fff', block: '#1b2a3b', minor: '#7f94ab', mid: '#a3b7cc', major: '#c6d5e6' };
     const W = b => ['interpolate', ['exponential', 1.5], ['zoom'], 12, b * .45, 15, b, 18, b * 4.5];
     const inCls = c => ['in', ['get', 'class'], ['literal', c]];
     const line = { type: 'line', source: 'omt', 'source-layer': 'transportation', layout: { 'line-cap': 'round', 'line-join': 'round' } };
@@ -50,7 +51,9 @@
       layers: [
         { id: 'land', type: 'background', paint: { 'background-color': C.land } },
         { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water', paint: { 'fill-color': C.water } },
-        { id: 'blocks', type: 'fill', source: 'omt', 'source-layer': 'building', minzoom: 15, paint: { 'fill-color': C.block, 'fill-opacity': .35 } },
+        { id: 'water-glow', type: 'line', source: 'omt', 'source-layer': 'water',
+          paint: { 'line-color': C.waterGlow, 'line-width': W(3), 'line-blur': W(3), 'line-opacity': .55 } },
+        { id: 'blocks', type: 'fill', source: 'omt', 'source-layer': 'building', minzoom: 15, paint: { 'fill-color': C.block, 'fill-opacity': .6 } },
         { ...line, id: 'minor', filter: inCls(['minor', 'service']), paint: { 'line-color': C.minor, 'line-width': W(2.2) } },
         { ...line, id: 'mid', filter: inCls(['secondary', 'tertiary']), paint: { 'line-color': C.mid, 'line-width': W(3.2) } },
         { ...line, id: 'major', filter: inCls(['motorway', 'trunk', 'primary']), paint: { 'line-color': C.major, 'line-width': W(4.6) } },
@@ -61,7 +64,7 @@
         { id: 'route-glow', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: { 'line-color': '#ffae1a', 'line-width': W(9), 'line-blur': W(6), 'line-opacity': .45 } },
         { id: 'route-casing', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': '#141512', 'line-width': W(6.5) } },
+          paint: { 'line-color': '#06101c', 'line-width': W(6.5) } },
         { id: 'route-line', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: { 'line-color': '#ffae1a', 'line-width': W(4.2) } },
         // Estabelecimentos
@@ -73,7 +76,7 @@
           layout: { 'text-field': ['coalesce', ['get', 'name:pt'], ['get', 'name']], 'text-font': ['Noto Sans Italic'],
                     'text-size': ['interpolate', ['linear'], ['zoom'], 17, 11, 19, 14], 'text-offset': [0, 1.1], 'text-anchor': 'top',
                     'text-max-width': 8, 'text-optional': true, 'text-padding': 4 },
-          paint: { 'text-color': '#f2f2ee', 'text-halo-color': '#141512', 'text-halo-width': 1.6 } },
+          paint: { 'text-color': '#eef6ff', 'text-halo-color': '#06101c', 'text-halo-width': 1.6 } },
         // Locais salvos: a bola colorida das lojas do jogo
         { id: 'place-glow', type: 'circle', source: 'places',
           paint: { 'circle-color': ['get', 'color'], 'circle-radius': Z(16, 26), 'circle-blur': 1, 'circle-opacity': .8 } },
@@ -105,7 +108,7 @@
   function roadsNear(p, layers, sourceLayer, radiusPx = 70) {
     try {
       const pt = map.project([p.lng, p.lat]), c = map.getContainer();
-      if (pt.x > 0 && pt.y > 0 && pt.x < c.clientWidth && pt.y < c.clientHeight && map.getLayer(layers[0])) {
+      if (!App.testSourceQuery && pt.x > 0 && pt.y > 0 && pt.x < c.clientWidth && pt.y < c.clientHeight && map.getLayer(layers[0])) {
         return map.queryRenderedFeatures([[pt.x - radiusPx, pt.y - radiusPx], [pt.x + radiusPx, pt.y + radiusPx]], { layers });
       }
       return map.getSource('omt') ? map.querySourceFeatures('omt', { sourceLayer }) : [];
@@ -115,44 +118,22 @@
   // ---------- Seta presa na rua (com "memória" da via atual) ----------
   // Guarda em S.road o trecho em que o carro está (ponto e rumo). Em cruzamentos, só troca de via
   // se a outra for claramente melhor, e nunca para uma rua atravessada ao sentido do carro.
-  const ROAD_CLASSES = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service']);
+  const ROAD_CLASSES = StreetMatch.ROAD_CLASSES;
+  // A escolha em si fica em streetmatch.js (o mesmo código roda no teste automático de Maracás).
   function snapToRoad(p, acc, moving) {
+    // Na cidade com base local (ex.: Maracás), usa o traçado exato dela, inclusive com rota ativa
+    const local = App.local && App.local.near(p);
+    if (local) {
+      const road = StreetMatch.snap(p, acc, moving, S.heading, S.road, local);
+      S.road = road ? { ...road, local: true } : null;
+      return road ? { lat: road.lat, lng: road.lng } : p;
+    }
     const onRoute = App.route && App.route.snap(p, clamp(acc || 15, 12, 30));
     if (onRoute) { S.road = onRoute; return { lat: onRoute.lat, lng: onRoute.lng }; }
     const feats = roadsNear(p, ['minor', 'mid', 'major'], 'transportation');
-    const prev = S.road;
-    const maxD = clamp(acc || 15, 10, 25);
-    let best = null, bestScore = Infinity;
-    // Com GPS bom quase certamente não estamos dentro de um túnel (lá o sinal cai)
-    const goodGps = acc == null || acc <= 25;
-    const tunnelPenalty = goodGps ? 20 : 0;
-    const surfaceD = Math.max(maxD, 28);      // via de superfície é aceita um pouco mais longe que um túnel
-    for (const f of feats) {
-      if (!ROAD_CLASSES.has(f.properties.class)) continue;
-      const tunnel = f.properties.brunnel === 'tunnel';
-      for (const ln of lines(f.geometry)) {
-        for (let i = 1; i < ln.length; i++) {
-          const s = segInfo(p, ln[i - 1], ln[i]);
-          if (s.d > (tunnel || !goodGps ? maxD : surfaceD)) continue;
-          let score = s.d + (tunnel ? tunnelPenalty : 0);
-          const ref = moving ? S.heading : (prev ? prev.b : null);
-          if (ref != null) {
-            const a = Math.abs(angDiff(s.b, ref)), off = Math.min(a, 180 - a);
-            if (moving && off > 45) continue;          // rua atravessada: não gruda nela
-            score += off * (moving ? .35 : .15);
-          }
-          // continuidade: perto do trecho anterior e com o mesmo rumo ganha bônus
-          if (prev && dist(prev, s) < 30) {
-            const a = Math.abs(angDiff(s.b, prev.b));
-            if (Math.min(a, 180 - a) < 20) score -= 4;
-          }
-          if (score < bestScore) { bestScore = score; best = s; best.tunnel = tunnel; }
-        }
-      }
-    }
-    if (!best) { S.road = null; return p; }
-    S.road = { lat: best.lat, lng: best.lng, b: best.b, d: best.d, tunnel: best.tunnel };
-    return { lat: best.lat, lng: best.lng };
+    const road = StreetMatch.snap(p, acc, moving, S.heading, S.road, feats);
+    S.road = road ? { ...road, local: false } : null;
+    return road ? { lat: road.lat, lng: road.lng } : p;
   }
 
   // ---------- Câmera ----------

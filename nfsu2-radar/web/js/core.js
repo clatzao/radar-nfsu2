@@ -90,7 +90,7 @@ window.App = {};
     const t = $('toast'); t.textContent = msg; t.classList.add('show');
     clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
   }
-  const SHEETS = ['routeSheet', 'placesSheet', 'placeForm', 'settingsSheet', 'offlineSheet'];
+  const SHEETS = ['routeSheet', 'placesSheet', 'placeForm', 'settingsSheet', 'offlineSheet', 'streetFix'];
   function openSheet(id) {
     SHEETS.forEach(s => ($(s).hidden = s !== id));
     closeCard();

@@ -141,6 +141,11 @@
     const here = S.shown || S.target;
     showCard({ title: 'Ponto selecionado', sub: `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}${here ? ' · ' + fmtDist(dist(here, p)) : ''}`,
       color: '#ffae1a', actions: [
+        ['Corrigir nome da rua', () => {
+          const local = App.local.near(p);
+          const road = StreetMatch.snap(p, 20, false, null, null, local || App.roadsNear(p, ['minor', 'mid', 'major'], 'transportation'));
+          App.openStreetFix(road && { ...road, local: !!local });
+        }],
         ['Salvar local', () => openForm(p)],
         ['Rota até aqui', () => App.route.to({ ...p, name: 'Ponto selecionado' }), true]
       ] });

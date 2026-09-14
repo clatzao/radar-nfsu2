@@ -14,3 +14,9 @@ nfsu2-app/app/src/main/assets/
 
 # Configuração local do editor
 .claude/
+
+# Dados de teste locais
+nfsu2-radar/web/_dev/
+
+# Downloads do gerador de ruas locais (OSM e IBGE)
+ferramentas/ruas-locais/cache/
