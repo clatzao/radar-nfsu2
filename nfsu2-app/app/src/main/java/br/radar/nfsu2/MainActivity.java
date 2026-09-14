@@ -3,7 +3,9 @@ package br.radar.nfsu2;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
+import android.net.Uri;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -21,9 +23,14 @@ import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
 
 /**
@@ -36,12 +43,19 @@ public class MainActivity extends Activity implements LocationListener {
     private static final int REQ_LOCATION = 1;
     /** Ignora posições da rede enquanto o GPS de verdade estiver respondendo. */
     private static final long GPS_PRIORITY_MS = 5000;
+    /**
+     * A interface é servida por este endereço https "de mentira" (reservado pelo Android para assets de apps).
+     * Em https o navegador interno permite guardar os mapas offline (IndexedDB), o que em file:// não é garantido.
+     */
+    private static final String APP_HOST = "appassets.androidplatform.net";
+    private static final String APP_URL = "https://" + APP_HOST + "/index.html";
 
     private WebView web;
     private LocationManager locationManager;
     private boolean gpsWanted = false;
     private boolean listening = false;
     private long lastGpsFixAt = 0;
+    private long lastFusedFixAt = 0;
 
     private TextToSpeech tts;
     private boolean ttsReady = false;
@@ -73,12 +87,63 @@ public class MainActivity extends Activity implements LocationListener {
         s.setDisplayZoomControls(false);
         s.setTextZoom(100);   // ignora o "tamanho da fonte" do sistema para não quebrar o layout
         web.setWebChromeClient(new WebChromeClient());
+        web.setWebViewClient(new AssetClient());
         updater = new Updater(this, script -> runOnUiThread(() -> web.evaluateJavascript(script, null)));
         web.addJavascriptInterface(new Bridge(), "NFSU2Native");
         setContentView(web);
-        web.loadUrl("file:///android_asset/index.html");
+        // Na primeira abertura depois de atualizar, copia os dados salvos (locais, ajustes) do endereço antigo file://
+        if (prefs().getBoolean("storage_migrated", false)) web.loadUrl(APP_URL);
+        else {
+            web.loadUrl("file:///android_asset/migrate.html");
+            // segurança: se a migração não responder em 4 s, abre o app mesmo assim
+            web.postDelayed(() -> {
+                if (!prefs().getBoolean("storage_migrated", false)) {
+                    prefs().edit().putBoolean("storage_migrated", true).apply();
+                    web.loadUrl(APP_URL);
+                }
+            }, 4000);
+        }
         hideSystemBars();
         setupVoice();
+    }
+
+    private SharedPreferences prefs() {
+        return getSharedPreferences("radar", MODE_PRIVATE);
+    }
+
+    /** Entrega os arquivos da interface (assets) no endereço https do app. */
+    private class AssetClient extends WebViewClient {
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            Uri url = request.getUrl();
+            if (!APP_HOST.equals(url.getHost())) return null;          // mapa, busca, rotas: vão para a internet normalmente
+            String path = url.getPath() == null || url.getPath().equals("/") ? "index.html" : url.getPath().substring(1);
+            try {
+                InputStream in = getAssets().open(path);
+                String mime = mimeOf(path);
+                boolean text = mime.startsWith("text/") || mime.endsWith("javascript") || mime.endsWith("json");
+                return new WebResourceResponse(mime, text ? "UTF-8" : null, in);
+            } catch (IOException e) {
+                return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", null, null);
+            }
+        }
+
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            return false;
+        }
+    }
+
+    private static String mimeOf(String path) {
+        String p = path.toLowerCase(Locale.US);
+        if (p.endsWith(".html")) return "text/html";
+        if (p.endsWith(".js")) return "application/javascript";
+        if (p.endsWith(".css")) return "text/css";
+        if (p.endsWith(".json")) return "application/json";
+        if (p.endsWith(".png")) return "image/png";
+        if (p.endsWith(".svg")) return "image/svg+xml";
+        if (p.endsWith(".ttf")) return "font/ttf";
+        return "application/octet-stream";
     }
 
     /** Voz das instruções: usa o leitor de texto do Android em português e abaixa a música enquanto fala. */
@@ -133,6 +198,21 @@ public class MainActivity extends Activity implements LocationListener {
             });
         }
 
+        /** Chamado por migrate.html com todo o localStorage antigo. */
+        @JavascriptInterface
+        public void migrationDone(String json) {
+            prefs().edit().putString("migration_json", json).putBoolean("storage_migrated", true).apply();
+            runOnUiThread(() -> web.loadUrl(APP_URL));
+        }
+
+        /** A página nova pega os dados antigos uma única vez. */
+        @JavascriptInterface
+        public String takeMigration() {
+            String json = prefs().getString("migration_json", "");
+            if (!json.isEmpty()) prefs().edit().remove("migration_json").apply();
+            return json;
+        }
+
         @JavascriptInterface
         public String getVersion() {
             return updater.currentVersion();
@@ -182,9 +262,15 @@ public class MainActivity extends Activity implements LocationListener {
         }
         try {
             if (gps) {
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, this);
+                // meio segundo entre leituras: a seta e o nome da rua reagem mais rápido em cruzamentos
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 500, 0, this);
                 Location last = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                 if (last != null && System.currentTimeMillis() - last.getTime() < 30000) onLocationChanged(last);
+            }
+            // Android 12+: provedor "fused" do próprio sistema (combina GPS, sensores e Wi-Fi), sem Google Play
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    && locationManager.getAllProviders().contains(LocationManager.FUSED_PROVIDER)) {
+                locationManager.requestLocationUpdates(LocationManager.FUSED_PROVIDER, 500, 0, this);
             }
             if (net) {
                 locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 2000, 0, this);
@@ -204,10 +290,15 @@ public class MainActivity extends Activity implements LocationListener {
 
     @Override
     public void onLocationChanged(Location l) {
-        boolean fromGps = LocationManager.GPS_PROVIDER.equals(l.getProvider());
-        if (fromGps) {
-            lastGpsFixAt = System.currentTimeMillis();
-        } else if (System.currentTimeMillis() - lastGpsFixAt < GPS_PRIORITY_MS) {
+        String provider = l.getProvider();
+        long now = System.currentTimeMillis();
+        if (LocationManager.GPS_PROVIDER.equals(provider)) {
+            lastGpsFixAt = now;
+        } else if ("fused".equals(provider)) {
+            // o fused só entra quando o GPS puro ficou mais de 1,5 s sem responder (ex.: túnel, prédios)
+            if (now - lastGpsFixAt < 1500) return;
+            lastFusedFixAt = now;
+        } else if (now - lastGpsFixAt < GPS_PRIORITY_MS || now - lastFusedFixAt < GPS_PRIORITY_MS) {
             return;
         }
         String js = String.format(Locale.US, "window.nativeFix && window.nativeFix(%.7f,%.7f,%s,%s,%s,%d)",

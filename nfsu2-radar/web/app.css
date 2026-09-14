@@ -33,8 +33,11 @@ button, input { font-family: inherit; font-style: italic; }
 .shade { position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 calc(var(--u)*12) calc(var(--u)*3) rgba(0,0,0,.55); }
 .shade::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 34vh;
   background: linear-gradient(180deg, rgba(0,0,0,.55), transparent); }
-.player { position: fixed; left: 50%; top: 66%; width: calc(var(--u)*7); pointer-events: none;
-  transform: translate(-50%, -50%) scaleY(.82); overflow: visible; filter: drop-shadow(0 .4vh .6vh rgba(0,0,0,.6)); }
+.player-marker { width: calc(var(--u)*7); height: calc(var(--u)*7); min-width: 30px; min-height: 30px; pointer-events: none; }
+.player-marker svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+.recenter { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--u)*3); z-index: 5;
+  display: flex; align-items: center; gap: calc(var(--u)*1); padding: calc(var(--u)*1.6) calc(var(--u)*3); }
+.recenter svg { width: calc(var(--u)*3.4); height: calc(var(--u)*3.4); }
 
 /* ---------- Painéis no estilo dos menus ---------- */
 .panel {
@@ -86,7 +89,9 @@ button, input { font-family: inherit; font-style: italic; }
 .zoom { position: fixed; right: calc(var(--u)*4.5); top: calc(var(--u)*31); display: flex; flex-direction: column; gap: calc(var(--u)*1.2); z-index: 4; }
 
 /* ---------- Bússola ---------- */
-.compass { position: fixed; right: calc(var(--u)*2.5); top: calc(var(--u)*17); width: calc(var(--u)*12); height: calc(var(--u)*12); pointer-events: none; overflow: visible; z-index: 2; }
+.compass-btn { position: fixed; right: calc(var(--u)*2.5); top: calc(var(--u)*17); width: calc(var(--u)*12); height: calc(var(--u)*12);
+  min-width: 48px; min-height: 48px; padding: 0; border: 0; background: transparent; cursor: pointer; z-index: 4; }
+.compass { width: 100%; height: 100%; overflow: visible; display: block; }
 
 /* ---------- Velocímetro (HUD personalizado do NFSU2) ---------- */
 .speedo { --speedo-h: 26; position: fixed; right: calc(var(--u)*2); bottom: calc(var(--u)*2);
@@ -126,6 +131,9 @@ button.row:active, .row.sel { border-color: var(--ui-title); box-shadow: inset 0
 .hint { color: var(--dim); font-size: calc(var(--u)*2.4); margin: calc(var(--u)*.6) 0 calc(var(--u)*1.2); }
 .actions { display: flex; gap: calc(var(--u)*1.2); flex-wrap: wrap; margin-top: calc(var(--u)*1.4); }
 .actions .btn { flex: 1; }
+
+.bar { height: calc(var(--u)*2.2); min-height: 10px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+.bar span { display: block; height: 100%; width: 0; background: var(--ui-title); transition: width .2s; }
 
 /* Bola colorida das lojas do jogo */
 .ball { display: block; width: calc(var(--u)*4.4); height: calc(var(--u)*4.4); min-width: 22px; min-height: 22px; flex: none; border-radius: 50%;
@@ -174,7 +182,8 @@ button.row:active, .row.sel { border-color: var(--ui-title); box-shadow: inset 0
   .small-panel { flex: 1; }
   .nav { top: calc(var(--u)*30); }
   .speedo { bottom: calc(var(--u)*12); height: calc(var(--u) * var(--speedo-h) * 1.25); }
-  .compass { top: calc(var(--u)*33); }
+  .compass-btn { top: calc(var(--u)*33); }
+  .recenter { bottom: calc(var(--u)*12); }
   .zoom { top: calc(var(--u)*48); }
   .card, .summary { bottom: calc(var(--u)*14); }
 }

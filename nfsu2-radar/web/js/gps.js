@@ -11,9 +11,13 @@
     App.emit('reset');
   }
 
+  let lastGood = null;   // última leitura precisa: { acc, t }
   function onFix(lat, lng, spd, hdg, acc, ts) {
     const now = ts || Date.now(), p = { lat, lng }, prev = S.fix;
     const good = acc == null || acc <= 50;
+    // Descarta leituras bem piores que as recentes (ex.: prédio, túnel, troca GPS → rede)
+    if (acc != null && lastGood && Date.now() - lastGood.t < 4000 && acc > Math.max(30, lastGood.acc * 3)) return;
+    if (acc != null && acc <= 20) lastGood = { acc, t: Date.now() };
     let moved = false;
     if (spd == null || isNaN(spd)) {
       // Sem velocidade do aparelho (comum em PC): calcula pela distância, só com sinal bom
@@ -32,7 +36,7 @@
       else if (prev) S.heading = brg(prev, p);
     }
     S.fix = { lat, lng, t: now };
-    S.target = S.mode === 'gps' ? App.snapToRoad(p, acc, moved && spd > 1.5) : p;
+    S.target = App.snapToRoad(p, acc, moved && spd > 1.5);
     S.speedMs = spd; S.speedKmh = spd * 3.6;
     S.lastFix = Date.now(); S.acc = acc;
     if (S.mode === 'gps') setGps(good ? 'Rua atual' : `Rua atual · GPS impreciso (±${Math.round(acc)} m)`);

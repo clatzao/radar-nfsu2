@@ -23,7 +23,8 @@ Write-Host "Versão $Version (código $code)"
 $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 Push-Location (Join-Path $root 'nfsu2-app')
 try {
-    & .\gradlew.bat assembleDebug --console=plain
+    # --no-daemon: sem o processo do Gradle em segundo plano segurando a saída do terminal
+    & .\gradlew.bat assembleDebug --console=plain --no-daemon
     if ($LASTEXITCODE -ne 0) { throw 'Falha no build do APK' }
 } finally { Pop-Location }
 $apk = Join-Path $env:TEMP "RadarNFSU2-v$Version.apk"
@@ -36,7 +37,9 @@ try {
     git add -A
     # mensagem via arquivo UTF-8: o PowerShell 5 estraga acentos passados direto na linha de comando
     $msgFile = Join-Path $env:TEMP "radar-nfsu2-commit-$Version.txt"
-    [IO.File]::WriteAllText($msgFile, "Versão $Version`n`nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>`n", $utf8)
+    # "Versão" escrito com o código do "ã": o PowerShell 5 lê este .ps1 como ANSI e estragaria o acento
+    $versao = "Vers$([char]0x00E3)o"
+    [IO.File]::WriteAllText($msgFile, "$versao $Version`n`nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>`n", $utf8)
     git commit -F $msgFile
     git tag "v$Version"
     git push origin main --tags

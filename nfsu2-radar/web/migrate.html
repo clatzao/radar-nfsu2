@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Migrando dados</title>
+<body style="background:#2e302c">
+<script>
+  // Usado só uma vez no app Android ao atualizar para a v0.4: copia os dados salvos no endereço antigo
+  // (file://) para o app levar ao endereço novo, onde os mapas offline funcionam.
+  var data = {};
+  try {
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); data[k] = localStorage.getItem(k); }
+  } catch (e) {}
+  if (window.NFSU2Native && NFSU2Native.migrationDone) NFSU2Native.migrationDone(JSON.stringify(data));
+</script>
+</body>

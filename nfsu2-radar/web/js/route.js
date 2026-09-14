@@ -150,8 +150,26 @@
     const src = map.getSource('route');
     if (src) src.setData(r ? { type: 'Feature', geometry: { type: 'LineString', coordinates: r.shape } } : { type: 'FeatureCollection', features: [] });
     $('compassTxt').textContent = r ? '★' : 'N';
-    if (!r) { $('nav').hidden = true; $('summary').hidden = true; previewing = false; App.follow(); }
+    if (!r) { $('nav').hidden = true; $('summary').hidden = true; previewing = false; App.follow(); App.save('nfsu2-active-route', null); }
   }
+  // Guarda a rota em andamento: se o app fechar (ou reiniciar sem internet), ela volta sozinha
+  function persistActive() {
+    if (route && !previewing) App.save('nfsu2-active-route', { ...route, spoken: {}, savedAt: Date.now() });
+  }
+  function startGuidance() {
+    $('summary').hidden = true; previewing = false; App.follow();
+    persistActive();
+    const first = route.maneuvers[0];
+    speak(`Rota iniciada até ${route.dest.name}. ${fmtDistSpoken(route.total)}, cerca de ${fmtDuration(route.time).replace('min', 'minutos').replace(' h ', ' horas e ')}. ${first ? first.instruction : ''}`);
+    updateProgress();
+  }
+  App.on('mapload', () => {
+    const saved = App.load('nfsu2-active-route', null);
+    if (!saved || !saved.shape || Date.now() - (saved.savedAt || 0) > 12 * 3600e3) return;
+    setRoute({ ...saved, idx: 0, offCount: 0, spoken: {} });
+    previewing = false;
+    toast('Rota retomada até ' + saved.dest.name, 3000);
+  });
 
   function showSummary(customOrigin) {
     previewing = true;
@@ -169,12 +187,8 @@
     $('summary').hidden = false;
   }
   $('sumCancel').onclick = () => { setRoute(null); from = to = null; $('fromInput').value = $('toInput').value = ''; };
-  $('sumStart').onclick = () => {
-    $('summary').hidden = true; previewing = false; App.follow();
-    const first = route.maneuvers[0];
-    speak(`Rota iniciada até ${route.dest.name}. ${fmtDistSpoken(route.total)}, cerca de ${fmtDuration(route.time).replace('min', 'minutos').replace(' h ', ' horas e ')}. ${first ? first.instruction : ''}`);
-    updateProgress();
-  };
+  $('sumStart').onclick = startGuidance;
+  $('sumOffline').onclick = () => route && App.offlineUI.downloadRoute(route, $('sumTitle').textContent);
   const fmtDistSpoken = m => spokenDist(m).replace(/^./, c => c.toUpperCase());
   $('navClose').onclick = () => { setRoute(null); from = to = null; $('fromInput').value = $('toInput').value = ''; toast('Rota encerrada'); };
 
@@ -212,11 +226,17 @@
     const reliable = S.acc == null || S.acc <= 30;
     route.offCount = best.d > 40 && reliable ? route.offCount + 1 : 0;
     if (route.offCount >= 3 && !rerouting && Date.now() - lastReroute > 12000 && !from) {
-      rerouting = true; lastReroute = Date.now();
-      toast('Recalculando rota…', 3000);
-      speak('Recalculando a rota.');
-      requestRoute(raw, route.dest).then(r => { if (route) { setRoute(r); updateProgress(); } })
-        .catch(() => {}).finally(() => (rerouting = false));
+      lastReroute = Date.now();
+      if (navigator.onLine === false) {
+        toast('Fora da rota e sem internet para recalcular — volte para a linha laranja', 5000);
+      } else {
+        rerouting = true;
+        toast('Recalculando rota…', 3000);
+        speak('Recalculando a rota.');
+        requestRoute(raw, route.dest).then(r => { if (route) { setRoute(r); persistActive(); updateProgress(); } })
+          .catch(() => toast('Não foi possível recalcular agora — siga a linha laranja', 4000))
+          .finally(() => (rerouting = false));
+      }
     }
 
     // Some com o trecho já percorrido (a linha laranja vai "encolhendo")
@@ -300,13 +320,16 @@
   App.route = {
     to: dest => { from = null; to = dest; $('fromInput').value = ''; $('toInput').value = dest.name || ''; calc(); },
     destination: () => route && route.dest,
+    current: () => route,
+    // Abre uma rota baixada (funciona sem internet) já no modo de navegação
+    start: saved => { from = null; to = saved.dest; setRoute({ ...saved, idx: 0, offCount: 0, spoken: {} }); startGuidance(); },
     shape: () => route && route.shape,
     id: () => route && route.id,
     // Com rota ativa, prende a seta na linha da rota quando o carro está sobre ela
     snap: (p, maxD) => {
       if (!route || previewing) return null;
       const { s } = nearestOnRoute(p, false);
-      return s.d <= maxD ? { lat: s.lat, lng: s.lng } : null;
+      return s.d <= maxD ? { lat: s.lat, lng: s.lng, b: s.b, d: s.d } : null;
     },
     // Aproxima um pouco o mapa perto de uma conversão
     zoomHint: () => (route && !previewing && route.toNext != null && route.toNext < 180 ? .6 : 0)

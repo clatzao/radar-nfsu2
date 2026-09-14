@@ -13,6 +13,8 @@
     { key: 'voice', type: 'switch', title: 'Voz', sub: 'Fala as instruções da rota (ex.: "Em 300 metros, vire à direita")' },
     { key: 'avoidTolls', type: 'switch', title: 'Evitar pedágios', sub: 'Vale para a próxima rota calculada' },
     { key: 'avoidUnpaved', type: 'switch', title: 'Evitar estrada de terra', sub: 'Vale para a próxima rota calculada' },
+    { section: 'Offline' },
+    { type: 'action', title: 'Mapas offline', sub: 'Baixar região ou rota para usar sem internet', label: 'Abrir', run: () => App.offlineUI.open() },
     { section: 'Testes' },
     { key: 'simulate', type: 'switch', title: 'Simular trajeto', sub: 'Um carro de mentira anda sozinho (segue a rota, se houver)' },
     { section: 'Aplicativo', nativeOnly: true },

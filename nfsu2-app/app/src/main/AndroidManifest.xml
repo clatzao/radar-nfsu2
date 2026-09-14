@@ -17,7 +17,8 @@
 
     <application
         android:label="Radar NFSU2"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
         android:hardwareAccelerated="true">
 

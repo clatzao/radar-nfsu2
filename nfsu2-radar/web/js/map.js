@@ -39,9 +39,11 @@
     const Z = (a, b) => ['interpolate', ['linear'], ['zoom'], 14, a, 18, b];
     return {
       version: 8,
-      glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+      // tiles e fontes passam pelo módulo offline (guarda no aparelho e usa sem internet)
+      glyphs: App.offline.style.glyphs,
       sources: {
-        omt: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+        omt: { type: 'vector', tiles: App.offline.style.tiles, minzoom: 0, maxzoom: App.offline.style.maxzoom,
+               attribution: '© OpenMapTiles © OpenStreetMap' },
         route: { type: 'geojson', data: EMPTY },
         places: { type: 'geojson', data: EMPTY }
       },
@@ -67,7 +69,6 @@
           paint: { 'circle-color': poiColor, 'circle-radius': Z(7, 16), 'circle-blur': 1, 'circle-opacity': .55 } },
         { id: 'poi-dot', type: 'circle', source: 'omt', 'source-layer': 'poi', minzoom: 16, filter: inCls(POI_CLASSES),
           paint: { 'circle-color': poiColor, 'circle-radius': Z(3.2, 7), 'circle-stroke-color': '#fff3a0', 'circle-stroke-width': Z(.8, 2) } },
-        // Nome dos estabelecimentos quando o mapa está bem aproximado
         { id: 'poi-label', type: 'symbol', source: 'omt', 'source-layer': 'poi', minzoom: 17, filter: ['all', inCls(POI_CLASSES), ['has', 'name']],
           layout: { 'text-field': ['coalesce', ['get', 'name:pt'], ['get', 'name']], 'text-font': ['Noto Sans Italic'],
                     'text-size': ['interpolate', ['linear'], ['zoom'], 17, 11, 19, 14], 'text-offset': [0, 1.1], 'text-anchor': 'top',
@@ -86,11 +87,12 @@
 
   const map = new maplibregl.Map({
     container: 'map', style: buildStyle(), center: [-46.6559, -23.5614], zoom: 16.4, pitch: settings.pitch,
-    interactive: false, attributionControl: false, fadeDuration: 0,
-    // Em telas de alta densidade, desenhar em 2x no máximo deixa o mapa bem mais leve sem perder nitidez visível
-    pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-    maxTileCacheSize: 200
+    attributionControl: false, fadeDuration: 0,
+    pixelRatio: Math.min(window.devicePixelRatio || 1, 2),   // mais leve em telas de alta densidade
+    maxTileCacheSize: 200,
+    dragRotate: true, touchPitch: false, keyboard: false, pitchWithRotate: false, maxPitch: 60
   });
+  map.touchZoomRotate.enableRotation();
   window.__radar = { map, S };   // para depuração pelo console
 
   function setPoiVisible(v) {
@@ -100,8 +102,6 @@
   App.onSetting(k => { if (k === 'showPoi') setPoiVisible(settings.showPoi); });
 
   // ---------- Consulta rápida de ruas perto de um ponto ----------
-  // Usa o índice espacial do que está desenhado na tela (bem mais leve que varrer os tiles inteiros).
-  // Se o ponto estiver fora da tela, cai na varredura completa.
   function roadsNear(p, layers, sourceLayer, radiusPx = 70) {
     try {
       const pt = map.project([p.lng, p.lat]), c = map.getContainer();
@@ -112,91 +112,106 @@
     } catch (e) { return []; }
   }
 
-  // ---------- Seta presa na rua ----------
+  // ---------- Seta presa na rua (com "memória" da via atual) ----------
+  // Guarda em S.road o trecho em que o carro está (ponto e rumo). Em cruzamentos, só troca de via
+  // se a outra for claramente melhor, e nunca para uma rua atravessada ao sentido do carro.
   const ROAD_CLASSES = new Set(['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor', 'service']);
   function snapToRoad(p, acc, moving) {
-    // Com rota ativa e o carro em cima dela, gruda na linha da rota (mais estável)
     const onRoute = App.route && App.route.snap(p, clamp(acc || 15, 12, 30));
-    if (onRoute) return onRoute;
+    if (onRoute) { S.road = onRoute; return { lat: onRoute.lat, lng: onRoute.lng }; }
     const feats = roadsNear(p, ['minor', 'mid', 'major'], 'transportation');
-    if (!feats.length) return p;
+    const prev = S.road;
     const maxD = clamp(acc || 15, 10, 25);
     let best = null, bestScore = Infinity;
+    // Com GPS bom quase certamente não estamos dentro de um túnel (lá o sinal cai)
+    const goodGps = acc == null || acc <= 25;
+    const tunnelPenalty = goodGps ? 20 : 0;
+    const surfaceD = Math.max(maxD, 28);      // via de superfície é aceita um pouco mais longe que um túnel
     for (const f of feats) {
       if (!ROAD_CLASSES.has(f.properties.class)) continue;
+      const tunnel = f.properties.brunnel === 'tunnel';
       for (const ln of lines(f.geometry)) {
         for (let i = 1; i < ln.length; i++) {
           const s = segInfo(p, ln[i - 1], ln[i]);
-          if (s.d > maxD) continue;
-          let score = s.d;
-          if (moving) {
-            const a = Math.abs(angDiff(s.b, S.heading)), off = Math.min(a, 180 - a);
-            if (off > 50) continue;
-            score += off * .3;
+          if (s.d > (tunnel || !goodGps ? maxD : surfaceD)) continue;
+          let score = s.d + (tunnel ? tunnelPenalty : 0);
+          const ref = moving ? S.heading : (prev ? prev.b : null);
+          if (ref != null) {
+            const a = Math.abs(angDiff(s.b, ref)), off = Math.min(a, 180 - a);
+            if (moving && off > 45) continue;          // rua atravessada: não gruda nela
+            score += off * (moving ? .35 : .15);
           }
-          if (score < bestScore) { bestScore = score; best = s; }
+          // continuidade: perto do trecho anterior e com o mesmo rumo ganha bônus
+          if (prev && dist(prev, s) < 30) {
+            const a = Math.abs(angDiff(s.b, prev.b));
+            if (Math.min(a, 180 - a) < 20) score -= 4;
+          }
+          if (score < bestScore) { bestScore = score; best = s; best.tunnel = tunnel; }
         }
       }
     }
-    return best ? { lat: best.lat, lng: best.lng } : p;
+    if (!best) { S.road = null; return p; }
+    S.road = { lat: best.lat, lng: best.lng, b: best.b, d: best.d, tunnel: best.tunnel };
+    return { lat: best.lat, lng: best.lng };
   }
 
   // ---------- Câmera ----------
-  // 'follow' = segue o carro; 'overview' = mostra a rota inteira (antes de iniciar)
-  const cam = { mode: 'follow' };
+  // 'follow' = segue o carro · 'free' = você arrasta/gira o mapa · 'overview' = rota inteira antes de iniciar
+  const cam = { mode: 'follow', lastTouch: 0, blend: null };
   const PLAYER_Y = .66;
-  const padding = () => ({ top: Math.max(0, (2 * PLAYER_Y - 1) * map.getContainer().clientHeight), bottom: 0, left: 0, right: 0 });
-  const playerEl = document.querySelector('.player');
+  const followPadding = () => ({ top: Math.max(0, (2 * PLAYER_Y - 1) * map.getContainer().clientHeight), bottom: 0, left: 0, right: 0 });
+
+  // Marcador do carro preso ao mapa (acompanha quando você arrasta ou gira)
+  const markerEl = document.createElement('div');
+  markerEl.className = 'player-marker';
+  markerEl.innerHTML = '<svg viewBox="0 0 40 40"><path d="M20 4 L33 34 L20 27 L7 34 Z" fill="#3fd63a" stroke="#0f3d0d" stroke-width="2" stroke-linejoin="round"/></svg>';
+  const marker = new maplibregl.Marker({ element: markerEl, rotationAlignment: 'map', pitchAlignment: 'map' })
+    .setLngLat([-46.6559, -23.5614]);
+  let markerAdded = false;
+
+  function setMode(mode) {
+    cam.mode = mode;
+    $('bRecenter').hidden = mode !== 'free';
+    $('speedo').style.visibility = mode === 'overview' ? 'hidden' : '';
+    App.emit('cammode', mode);
+  }
   function overview(bounds) {
-    cam.mode = 'overview';
-    playerEl.style.display = 'none';        // <svg> não aceita a propriedade .hidden
-    $('speedo').style.visibility = 'hidden';   // libera o canto para ver a rota inteira
+    setMode('overview');
     const h = map.getContainer().clientHeight, w = map.getContainer().clientWidth;
-    map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });   // tira o deslocamento usado para seguir o carro
+    map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
     map.jumpTo({ bearing: 0, pitch: 0 });
-    // deixa espaço para o resumo (à esquerda na tela deitada, embaixo no celular em pé)
     const pad = w > h ? { top: h * .22, bottom: h * .12, left: w * .44, right: w * .1 }
                       : { top: h * .3, bottom: h * .42, left: w * .08, right: w * .08 };
     map.fitBounds(bounds, { padding: pad, duration: 0, maxZoom: 16 });
   }
   function follow() {
-    cam.mode = 'follow';
-    playerEl.style.display = '';
-    $('speedo').style.visibility = '';
+    if (cam.mode === 'follow') return;
+    // volta ao carro suavemente em ~0,7 s
+    cam.blend = { t0: performance.now(), center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(),
+                  pitch: map.getPitch(), padding: map.getPadding() };
+    setMode('follow');
   }
+  function free() {
+    cam.blend = null;
+    setMode('free');
+  }
+  // Qualquer gesto seu no mapa (arrastar, pinçar, girar, roda do mouse) solta a câmera do carro
+  map.on('movestart', e => { if (e.originalEvent) { cam.lastTouch = Date.now(); if (cam.mode === 'follow') free(); } });
+  map.on('move', e => { if (e.originalEvent) cam.lastTouch = Date.now(); });
+  $('bRecenter').onclick = follow;
 
-  // ---------- Zoom: pinça, roda do mouse ou botões + / − ----------
+  // ---------- Zoom pelos botões + / − ----------
   const ZOOM_MIN = -4, ZOOM_MAX = 2.5;
   let userZoom = clamp(App.load('nfsu2-zoom', 0) || 0, ZOOM_MIN, ZOOM_MAX), zoomShown = userZoom;
   function setUserZoom(z) {
-    if (cam.mode === 'overview') { map.setZoom(clamp(map.getZoom() + (z - userZoom), 3, 18)); return; }
     userZoom = clamp(z, ZOOM_MIN, ZOOM_MAX);
     App.save('nfsu2-zoom', +userZoom.toFixed(2));
   }
-  $('bZoomIn').onclick = () => setUserZoom(userZoom + .5);
-  $('bZoomOut').onclick = () => setUserZoom(userZoom - .5);
-  function resetZoom() { userZoom = 0; App.save('nfsu2-zoom', 0); }
-  const inUi = t => t.closest && t.closest('.panel, .btn, .menu, .zoom, .diag');
-
-  let pinch = null;
-  const touchDist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-  document.addEventListener('touchstart', e => {
-    if (e.touches.length === 2 && !inUi(e.target)) { pinch = { d: touchDist(e.touches), z: userZoom, mz: map.getZoom() }; cancelPress(); }
-  }, { passive: true });
-  document.addEventListener('touchmove', e => {
-    if (!pinch || e.touches.length !== 2) return;
-    e.preventDefault();
-    const dz = Math.log2(touchDist(e.touches) / pinch.d);
-    if (cam.mode === 'overview') map.setZoom(clamp(pinch.mz + dz, 3, 18));
-    else { setUserZoom(pinch.z + dz); zoomShown = userZoom; }
-  }, { passive: false });
-  document.addEventListener('touchend', e => { if (e.touches.length < 2) pinch = null; });
-  document.addEventListener('wheel', e => {
-    if (inUi(e.target)) return;
-    e.preventDefault();
-    if (cam.mode === 'overview') map.setZoom(clamp(map.getZoom() - e.deltaY * .003, 3, 18));
-    else setUserZoom(userZoom - e.deltaY * .003);
-  }, { passive: false });
+  $('bZoomIn').onclick = () => cam.mode === 'follow' ? setUserZoom(userZoom + .5) : map.zoomIn({ duration: 250 });
+  $('bZoomOut').onclick = () => cam.mode === 'follow' ? setUserZoom(userZoom - .5) : map.zoomOut({ duration: 250 });
+  function resetZoom() { setUserZoom(0); if (cam.mode !== 'follow') follow(); }
+  // Tocar na bússola deixa o norte para cima (no modo livre)
+  $('compassBtn').onclick = () => { if (cam.mode !== 'follow') map.easeTo({ bearing: 0, duration: 400 }); };
   ['gesturestart', 'gesturechange'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
 
   // ---------- Toque e "segurar" no mapa ----------
@@ -211,11 +226,11 @@
   $('map').addEventListener('pointermove', e => {
     if (press && Math.hypot(e.clientX - press.pt[0], e.clientY - press.pt[1]) > 12) cancelPress();
   });
+  $('map').addEventListener('touchstart', e => { if (e.touches.length > 1) cancelPress(); }, { passive: true });
   $('map').addEventListener('pointerup', () => {
     if (press && !press.long && Date.now() - press.t < 400) {
       const [x, y] = press.pt, box = [[x - 26, y - 26], [x + 26, y + 26]];
       const layers = ['place-disc', 'poi-dot'].filter(id => map.getLayer(id));
-      // escolhe o ponto mais perto do dedo (locais salvos têm preferência), não o primeiro da lista
       let hit = null, bestD = Infinity;
       for (const f of map.queryRenderedFeatures(box, { layers })) {
         const q = map.project(f.geometry.coordinates);
@@ -228,36 +243,59 @@
   });
   $('map').addEventListener('pointercancel', cancelPress);
 
-  // ---------- Animação (30 fps) ----------
+  // ---------- Animação (até 60 fps) ----------
   const north = $('north');
   let last = performance.now();
+  const lerpAng = (a, b, t) => (a + angDiff(b, a) * t + 360) % 360;
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = (now - last) / 1000;
-    if (dt < 1 / 62) return;          // até 60 quadros por segundo
+    if (dt < 1 / 62) return;
     last = now;
     const step = Math.min(dt, .2);
     App.emit('frame', step);
     if (!S.target) return;
-    // Prevê a posição entre um sinal de GPS e outro para o movimento ficar suave
+
     const age = (Date.now() - S.lastFix) / 1000;
     const pred = S.speedMs > 1 && age < 2.5 ? offset(S.target, S.heading, S.speedMs * Math.min(1.2, age)) : S.target;
     if (!S.shown || dist(S.shown, pred) > 300) S.shown = { ...pred };
     const k = 1 - Math.exp(-step * 6);
     S.shown.lat += (pred.lat - S.shown.lat) * k;
     S.shown.lng += (pred.lng - S.shown.lng) * k;
-    S.bearing = (S.bearing + angDiff(S.heading, S.bearing) * (1 - Math.exp(-step * 4)) + 360) % 360;
-    // Triângulo laranja: destino da rota (como no jogo) ou norte
+    S.bearing = lerpAng(S.bearing, S.heading, 1 - Math.exp(-step * 4));
+
+    marker.setLngLat([S.shown.lng, S.shown.lat]).setRotation(S.heading);
+    if (!markerAdded) { marker.addTo(map); markerAdded = true; }
+    markerEl.style.visibility = cam.mode === 'overview' ? 'hidden' : '';
+
+    // Triângulo laranja: aponta o destino da rota (como no jogo) ou o norte, relativo à tela
     const dest = App.route && App.route.destination();
-    const tri = dest ? App.brg(S.shown, dest) - S.bearing : -S.bearing;
+    const screenBearing = cam.mode === 'follow' ? S.bearing : map.getBearing();
+    const tri = dest ? App.brg(S.shown, dest) - screenBearing : -screenBearing;
     north.setAttribute('transform', `rotate(${tri} 50 50)`);
+
+    // Com rota ativa, volta a seguir o carro sozinho depois de 20 s sem mexer no mapa
+    if (cam.mode === 'free' && App.route && App.route.destination() && Date.now() - cam.lastTouch > 20000) follow();
     if (cam.mode !== 'follow') return;
-    // Quanto mais rápido, mais o mapa se afasta
+
     const zt = clamp(16.6 - (S.speedKmh - 20) / 100 * 1.6, 15, 16.6) + (App.route ? App.route.zoomHint() : 0);
     S.zoom += (zt - S.zoom) * (1 - Math.exp(-step * 1.2));
     zoomShown += (userZoom - zoomShown) * (1 - Math.exp(-step * 12));
-    map.jumpTo({ center: [S.shown.lng, S.shown.lat], bearing: S.bearing, zoom: clamp(S.zoom + zoomShown, 11, 19.5),
-                 pitch: settings.pitch, padding: padding() });
+    const target = { center: [S.shown.lng, S.shown.lat], bearing: S.bearing, zoom: clamp(S.zoom + zoomShown, 11, 19.5),
+                     pitch: settings.pitch, padding: followPadding() };
+    if (cam.blend) {
+      const t = Math.min(1, (now - cam.blend.t0) / 700), e = t * t * (3 - 2 * t);
+      const b = cam.blend, P = followPadding();
+      map.jumpTo({
+        center: [b.center.lng + (target.center[0] - b.center.lng) * e, b.center.lat + (target.center[1] - b.center.lat) * e],
+        zoom: b.zoom + (target.zoom - b.zoom) * e, bearing: lerpAng(b.bearing, target.bearing, e),
+        pitch: b.pitch + (target.pitch - b.pitch) * e,
+        padding: { top: b.padding.top + (P.top - b.padding.top) * e, bottom: 0, left: 0, right: 0 }
+      });
+      if (t >= 1) cam.blend = null;
+      return;
+    }
+    map.jumpTo(target);
   }
   requestAnimationFrame(frame);
 

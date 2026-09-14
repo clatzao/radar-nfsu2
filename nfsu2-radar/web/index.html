@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0b0c0b">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Radar NFSU2</title>
+<link rel="icon" href="icon.png">
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
 <link href="app.css" rel="stylesheet">
 <script src="vendor/maplibre-gl.js"></script>
@@ -13,9 +14,6 @@
 <body>
 <div id="map"></div>
 <div class="shade"></div>
-<svg class="player" viewBox="0 0 40 40" aria-hidden="true">
-  <path d="M20 4 L33 34 L20 27 L7 34 Z" fill="var(--player)" stroke="#0f3d0d" stroke-width="2" stroke-linejoin="round"/>
-</svg>
 
 <!-- Topo: rua, temperatura, horário -->
 <div class="top">
@@ -45,12 +43,17 @@
 </div>
 
 <!-- Bússola: o triângulo laranja aponta o norte, ou o destino quando há rota -->
+<button class="compass-btn" id="compassBtn" aria-label="Norte para cima">
 <svg class="compass" viewBox="0 0 100 100" aria-hidden="true">
   <circle cx="50" cy="50" r="38" fill="rgba(22,24,22,.65)" stroke="rgba(128,128,122,.9)" stroke-width="10"/>
   <circle cx="50" cy="50" r="43.5" fill="none" stroke="rgba(215,215,208,.5)" stroke-width="1"/>
   <text id="compassTxt" x="50" y="59" text-anchor="middle" font-family="'Exo 2', sans-serif" font-style="italic" font-weight="800" font-size="26" fill="#f2f2ee">N</text>
   <g id="north"><path d="M50 3 L58.5 16 L41.5 16 Z" fill="rgba(22,24,22,.9)" stroke="var(--marker)" stroke-width="3.6" stroke-linejoin="round"/></g>
 </svg>
+</button>
+
+<button class="btn recenter" id="bRecenter" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Centralizar</button>
 
 <div class="speedo" id="speedo"><svg id="speedoSvg" viewBox="75 75 1275 975" aria-hidden="true"></svg></div>
 
@@ -110,6 +113,24 @@
   <div class="body" id="settingsBody"></div>
 </div>
 
+<!-- Janela: mapas offline -->
+<div class="panel sheet" id="offlineSheet" hidden>
+  <div class="head"><h6>Mapas offline</h6><button class="btn icon" data-close aria-label="Fechar">✕</button></div>
+  <div class="rule"></div>
+  <div class="hint">O mapa que você já viu fica guardado e funciona sem internet. Para garantir, baixe antes a região ou a rota
+    (na tela de resumo da rota, toque em <b>Baixar offline</b>). Sem internet não dá para buscar endereços nem calcular rotas novas.</div>
+  <div class="actions" style="margin-top:0">
+    <button class="btn primary" id="offArea">Baixar região ao redor (10 km)</button>
+  </div>
+  <div id="offProgress" hidden>
+    <div class="section" id="offProgTitle">Baixando…</div>
+    <div class="bar"><span id="offBar"></span></div>
+    <div class="actions"><button class="btn" id="offCancel">Cancelar download</button></div>
+  </div>
+  <div class="hint" id="offUsage"></div>
+  <div class="body" id="offList"></div>
+</div>
+
 <!-- Cartão de um ponto do mapa -->
 <div class="panel card" id="card" hidden>
   <div class="row"><span class="ball" id="cardBall"></span><div class="t"><b id="cardTitle"></b><small id="cardSub"></small></div>
@@ -122,7 +143,7 @@
   <h6 id="sumTitle">Rota</h6><div class="rule"></div>
   <div class="nums"><div><b id="sumDist">—</b>distância</div><div><b id="sumTime">—</b>tempo estimado</div><div><b id="sumEta">—</b>chegada</div></div>
   <div class="hint" id="sumNote"></div>
-  <div class="actions"><button class="btn" id="sumCancel">Cancelar</button><button class="btn primary" id="sumStart">Iniciar</button></div>
+  <div class="actions"><button class="btn" id="sumCancel">Cancelar</button><button class="btn" id="sumOffline">Baixar offline</button><button class="btn primary" id="sumStart">Iniciar</button></div>
 </div>
 
 <!-- Aviso de atualização do app -->
@@ -137,12 +158,14 @@
 <div class="diag" id="diag" hidden></div>
 
 <script src="js/core.js"></script>
+<script src="js/offline.js"></script>
 <script src="js/map.js"></script>
 <script src="js/gps.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/speedo.js"></script>
 <script src="js/places.js"></script>
 <script src="js/route.js"></script>
+<script src="js/offline-ui.js"></script>
 <script src="js/update.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/main.js"></script>

@@ -9,9 +9,13 @@
     if (name === lastStreet) return;
     lastStreet = name; $('street').textContent = name || '—';
   }
-  function updateStreet() {
-    const p = S.shown || S.target;
-    if (!p) return;
+  // Escolha do nome em duas etapas:
+  //  1) usa o ponto em que a seta está presa na via (S.road), não a posição prevista à frente
+  //     (que em cruzamentos já estava "entrando" na rua transversal);
+  //  2) só aceita nomes de linhas quase em cima desse ponto e com o mesmo rumo da via.
+  // Um nome novo precisa ganhar 2 leituras seguidas para substituir o atual (evita piscar em cruzamentos).
+  let pending = { name: '', hits: 0 };
+  function pickName(p, roadBearing, maxD, maxAngle) {
     const feats = App.roadsNear(p, ['road-names'], 'transportation_name', 90);
     D.tileNames = feats.length;
     let best = null, bestScore = Infinity, nearest = Infinity, nearestName = '';
@@ -22,19 +26,48 @@
         for (let i = 1; i < ln.length; i++) {
           const s = segInfo(p, ln[i - 1], ln[i]);
           if (s.d < nearest) { nearest = s.d; nearestName = name; }
-          if (s.d > 45) continue;
+          if (s.d > maxD) continue;
           let score = s.d;
-          if (S.speedMs > 2) { const a = Math.abs(angDiff(s.b, S.heading)); score += Math.min(a, 180 - a) * .5; }
+          if (roadBearing != null) {
+            const a = Math.abs(angDiff(s.b, roadBearing)), off = Math.min(a, 180 - a);
+            if (off > maxAngle) continue;
+            score += off * .4;
+          }
+          // Túnel só vale se a via onde a seta está presa também for túnel
+          if (/^t[úu]nel\b/i.test(name) && !(S.road && S.road.tunnel)) score += 25;
           if (score < bestScore) { bestScore = score; best = name; }
         }
       }
     }
     D.nearestName = nearestName; D.nearestDist = isFinite(nearest) ? Math.round(nearest) : null;
-    if (best) { D.source = 'mapa'; return showStreet(best); }
-    // Plano B: o mapa não tem nome de rua por perto → pergunta ao serviço de endereços
-    reverseStreet(p);
-    if (geo.name && geo.at && dist(geo.at, p) < 60) { D.source = 'serviço de endereços'; showStreet(geo.name); }
-    else if (feats.length || geo.at) { D.source = 'nenhuma'; showStreet(''); }
+    return { best, count: feats.length };
+  }
+
+  function updateStreet() {
+    if (!S.target) return;
+    const road = S.road;
+    const p = road ? { lat: road.lat, lng: road.lng } : S.target;
+    const bearing = road && road.b != null ? road.b : (S.speedMs > 2 ? S.heading : null);
+    // GPS ruim demais: mantém o nome atual em vez de arriscar um errado
+    if (S.acc != null && S.acc > 35 && lastStreet) { D.source = 'mantido (GPS impreciso)'; return; }
+
+    // 1ª tentativa: linha do nome praticamente em cima da via (mesmo traçado); depois, um pouco mais de folga
+    let { best, count } = pickName(p, bearing, 8, 20);
+    if (!best) best = pickName(p, bearing, 18, 28).best;
+    if (!best) best = pickName(p, bearing, 30, 35).best;
+    let name = best, source = 'mapa';
+    if (!best) {
+      // Plano B: o mapa não tem nome por perto → serviço de endereços (só com internet)
+      reverseStreet(S.target);
+      if (geo.name && geo.at && dist(geo.at, S.target) < 40) { name = geo.name; source = 'serviço de endereços'; }
+      else if (!count && !geo.at) return;
+      else { name = ''; source = 'nenhuma'; }
+    }
+    if (name === lastStreet) { pending = { name: '', hits: 0 }; D.source = source; return; }
+    // parado ou quase parado: não troca um nome já exibido
+    if (lastStreet && S.speedMs < 1) return;
+    pending = pending.name === name ? { name, hits: pending.hits + 1 } : { name, hits: 1 };
+    if (!lastStreet || pending.hits >= 2) { D.source = source; showStreet(name); pending = { name: '', hits: 0 }; }
   }
   setInterval(updateStreet, 1000);
 
@@ -82,7 +115,8 @@
   App.on('reset', () => {
     W.gen++; W.at = null; W.last = 0; W.retryAt = 0;
     geo.gen++; geo.name = ''; geo.at = null; geo.time = 0;
-    lastStreet = ''; $('street').textContent = '—'; $('temp').textContent = '--°';
+    lastStreet = ''; pending = { name: '', hits: 0 }; S.road = null;
+    $('street').textContent = '—'; $('temp').textContent = '--°';
   });
 
   // ---------- Relógio ----------
@@ -106,6 +140,7 @@
       `modo: ${S.mode}${App.NATIVE ? ' · app' : ' · navegador'}`,
       `gps: ${f ? f.lat.toFixed(6) + ', ' + f.lng.toFixed(6) : '—'}  ±${S.acc != null ? Math.round(S.acc) : '?'} m`,
       `seta: ${p ? p.lat.toFixed(6) + ', ' + p.lng.toFixed(6) : '—'}  (desvio ${f && p ? Math.round(dist(f, p)) : '?'} m)`,
+      `via atual: ${S.road ? 'rumo ' + Math.round(S.road.b ?? -1) + '°, a ' + Math.round(S.road.d ?? 0) + ' m do GPS' : 'nenhuma'}`,
       `velocidade: ${Math.round(S.speedKmh)} km/h · direção ${Math.round(S.heading)}°`,
       `zoom: ${map.getZoom().toFixed(1)} (ajuste ${App.userZoom().toFixed(1)})`,
       `mapa carregado: ${map.loaded()} · nomes nos tiles: ${D.tileNames}`,

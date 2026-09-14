@@ -7,6 +7,8 @@ Mapa de navegação para central multimídia Android (e celular) com o visual do
 - Nome da rua, temperatura e horário
 - Busca de endereços, rotas com instruções faladas em português e horário de chegada
 - Estabelecimentos no mapa e locais salvos com a "bola colorida" das lojas do jogo
+- Mapa livre: arrastar, pinçar e girar; botão **Centralizar** volta a seguir o carro
+- Mapas offline: o que já foi visto fica guardado; dá para baixar uma região ou a rota inteira
 
 ## Estrutura
 

@@ -45,6 +45,15 @@ window.App = {};
   const fmtClock = d => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  // ---------- Dados trazidos da versão antiga do app (só acontece uma vez) ----------
+  try {
+    const json = window.NFSU2Native && window.NFSU2Native.takeMigration && window.NFSU2Native.takeMigration();
+    if (json) {
+      const old = JSON.parse(json);
+      Object.keys(old).forEach(k => { if (localStorage.getItem(k) == null) localStorage.setItem(k, old[k]); });
+    }
+  } catch (e) {}
+
   // ---------- Armazenamento local (no app fica salvo no aparelho) ----------
   function load(key, fallback) {
     try { const v = localStorage.getItem(key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; }
@@ -81,7 +90,7 @@ window.App = {};
     const t = $('toast'); t.textContent = msg; t.classList.add('show');
     clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
   }
-  const SHEETS = ['routeSheet', 'placesSheet', 'placeForm', 'settingsSheet'];
+  const SHEETS = ['routeSheet', 'placesSheet', 'placeForm', 'settingsSheet', 'offlineSheet'];
   function openSheet(id) {
     SHEETS.forEach(s => ($(s).hidden = s !== id));
     closeCard();
