@@ -153,6 +153,7 @@ button.row:active, .row.sel { border-color: var(--ui-title); box-shadow: inset 0
 /* Cartão (toque num local / estabelecimento / segurar no mapa) e resumo da rota: à esquerda, acima do menu */
 .card, .summary { position: fixed; left: calc(var(--u)*2.5); bottom: calc(var(--u)*12); z-index: 9;
   width: min(calc(100vw - var(--u)*5), calc(var(--u)*78)); background: rgba(18,19,17,.94); }
+.card.update { bottom: auto; top: 30vh; left: 50%; transform: translateX(-50%); z-index: 15; }
 .card .row { background: transparent; border: 0; padding: 0; margin: 0 0 calc(var(--u)*.6); }
 .summary .nums { display: flex; gap: calc(var(--u)*4); margin: calc(var(--u)*.4) 0 calc(var(--u)*.6); }
 .summary .nums div { font-size: calc(var(--u)*2.4); color: var(--dim); font-weight: 700; }

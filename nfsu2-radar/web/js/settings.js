@@ -15,6 +15,10 @@
     { key: 'avoidUnpaved', type: 'switch', title: 'Evitar estrada de terra', sub: 'Vale para a próxima rota calculada' },
     { section: 'Testes' },
     { key: 'simulate', type: 'switch', title: 'Simular trajeto', sub: 'Um carro de mentira anda sozinho (segue a rota, se houver)' },
+    { section: 'Aplicativo', nativeOnly: true },
+    { key: 'autoUpdate', type: 'switch', nativeOnly: true, title: 'Atualização automática', sub: 'Procura versão nova ao abrir o app' },
+    { type: 'action', nativeOnly: true, title: 'Verificar atualização', sub: () => `Versão instalada: ${App.update.version()}`,
+      label: 'Verificar', run: () => { toast('Procurando atualização…'); App.update.check(true); } },
     { section: 'Dados' },
     { type: 'action', title: 'Zerar zoom', sub: 'Volta o zoom do mapa ao padrão', label: 'Zerar', run: () => { App.resetZoom(); toast('Zoom zerado'); } },
     { type: 'action', title: 'Apagar locais salvos', sub: 'Remove todas as bolas do mapa', label: 'Apagar', danger: true,
@@ -23,13 +27,15 @@
 
   function render() {
     $('settingsBody').innerHTML = OPTIONS.map((o, i) => {
+      if (o.nativeOnly && !(App.update && App.update.available)) return '';
       if (o.section) return `<div class="section">${o.section}</div>`;
       let ctl = '';
       if (o.type === 'switch') ctl = `<button class="switch${settings[o.key] ? ' on' : ''}" data-i="${i}" role="switch" aria-checked="${!!settings[o.key]}" aria-label="${o.title}"></button>`;
       if (o.type === 'seg') ctl = `<div class="seg">${o.choices.map(([v, l]) =>
         `<button data-i="${i}" data-v="${v}" class="${String(settings[o.key]) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
       if (o.type === 'action') ctl = `<button class="btn${o.danger ? ' danger' : ''}" data-i="${i}">${o.label}</button>`;
-      return `<div class="opt"><div class="t"><b>${o.title}</b><small>${o.sub}</small></div>${ctl}</div>`;
+      const sub = typeof o.sub === 'function' ? o.sub() : o.sub;
+      return `<div class="opt"><div class="t"><b>${o.title}</b><small>${App.esc(sub)}</small></div>${ctl}</div>`;
     }).join('');
   }
   $('settingsBody').addEventListener('click', e => {

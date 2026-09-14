@@ -125,6 +125,13 @@
   <div class="actions"><button class="btn" id="sumCancel">Cancelar</button><button class="btn primary" id="sumStart">Iniciar</button></div>
 </div>
 
+<!-- Aviso de atualização do app -->
+<div class="panel card update" id="updateCard" hidden>
+  <h6 id="updTitle">Atualização disponível</h6><div class="rule"></div>
+  <div class="hint" id="updSub"></div>
+  <div class="actions" id="updActions"><button class="btn" id="updLater">Depois</button><button class="btn primary" id="updNow">Atualizar</button></div>
+</div>
+
 <div class="attrib">© OpenStreetMap · OpenFreeMap · Open-Meteo · Photon · Valhalla</div>
 <div class="panel toast" id="toast"></div>
 <div class="diag" id="diag" hidden></div>
@@ -136,6 +143,7 @@
 <script src="js/speedo.js"></script>
 <script src="js/places.js"></script>
 <script src="js/route.js"></script>
+<script src="js/update.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/main.js"></script>
 </body>

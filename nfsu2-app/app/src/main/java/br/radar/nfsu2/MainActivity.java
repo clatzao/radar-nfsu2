@@ -2,6 +2,7 @@ package br.radar.nfsu2;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -47,6 +48,8 @@ public class MainActivity extends Activity implements LocationListener {
     private AudioManager audio;
     private AudioFocusRequest focusRequest;
 
+    private Updater updater;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -70,6 +73,7 @@ public class MainActivity extends Activity implements LocationListener {
         s.setDisplayZoomControls(false);
         s.setTextZoom(100);   // ignora o "tamanho da fonte" do sistema para não quebrar o layout
         web.setWebChromeClient(new WebChromeClient());
+        updater = new Updater(this, script -> runOnUiThread(() -> web.evaluateJavascript(script, null)));
         web.addJavascriptInterface(new Bridge(), "NFSU2Native");
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
@@ -127,6 +131,21 @@ public class MainActivity extends Activity implements LocationListener {
                 gpsWanted = true;
                 startLocation();
             });
+        }
+
+        @JavascriptInterface
+        public String getVersion() {
+            return updater.currentVersion();
+        }
+
+        @JavascriptInterface
+        public void checkUpdate(boolean manual) {
+            updater.check(manual);
+        }
+
+        @JavascriptInterface
+        public void installUpdate() {
+            runOnUiThread(() -> updater.install());
         }
 
         @JavascriptInterface
@@ -219,6 +238,13 @@ public class MainActivity extends Activity implements LocationListener {
         } else {
             sendStatus("Permissão de localização negada");
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (Updater.ACTION_INSTALL_STATUS.equals(intent.getAction())) updater.onInstallStatus(intent);
     }
 
     @Override

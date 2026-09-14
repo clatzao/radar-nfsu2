@@ -61,7 +61,8 @@ window.App = {};
     pitch: 38,             // inclinação do mapa, como o disco do radar no jogo
     avoidTolls: false,
     avoidUnpaved: false,
-    simulate: false        // simula um carro andando (para testar sem sair de casa)
+    simulate: false,       // simula um carro andando (para testar sem sair de casa)
+    autoUpdate: true       // procura versão nova do app no GitHub
   };
   const settings = Object.assign({}, DEFAULTS, load('nfsu2-settings', {}));
   const listeners = [];
